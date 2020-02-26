@@ -3,9 +3,37 @@ import time
 import mysql.connector
 import telepot
 import RPi.GPIO as GPIO
+import requests
+import json
+import calendar
+import pyowm
 from datetime import datetime
-
 from telepot.loop import MessageLoop
+
+LANG = 'en'
+
+
+
+
+current_date = ''
+def get_weather():
+    owm = pyowm.OWM('d45a4689c7ff92c093ee18f3c3dafac9')
+    obs = owm.weather_at_place('Oulu')
+    w = obs.get_weather()
+    wind = w.get_wind()
+    humidity = w.get_humidity()
+    temperature = w.get_temperature('celsius')
+    temp =temperature["temp"]
+    rain = w.get_rain()
+    if len(rain)==0:
+        lastrain=0
+    else:
+        lastrain = rain["3h"]
+#     print('Lampotila: ' + str(temp)+ "Celsius")
+#     print("Sade: " + str(lastrain) + " mm")
+    
+    return temp
+
 
 ledPin = 18
 lukitus = 0
@@ -24,6 +52,8 @@ def action(msg):
     
     if command == '/temp':
         telegram_bot.sendMessage(chat_id,str(read_temp())+str("°C"))
+    if command == '/weather':
+        telegram_bot.sendMessage(chat_id,str(get_weather())+str("°C"))
         
 telegram_bot = telepot.Bot('1025221521:AAELhOd7goe4ySkGZbfM5i3IYUmGyzg9m1Y')
 #print(telegram_bot.getMe())
@@ -64,15 +94,16 @@ while True:
         val = (rcv, dtime)
         mycursor.execute(sql, val)
         mydb.commit()
+        
         print(read_temp())
         
-        if read_temp() > 26 and lukitus == 0:
+        if read_temp() > 25 and lukitus == 0:
             telegram_bot.sendMessage(-231197051,str("Yikes! Nyt polttelee! :D ")+ str(read_temp())+str(" °C")) #231197051 1089913206
             GPIO.setmode(GPIO.BCM)
             GPIO.setup(ledPin, GPIO.OUT)
             GPIO.output(ledPin, GPIO.HIGH)
             lukitus = 1
-        elif read_temp() < 26 and lukitus == 1:
+        elif read_temp() < 25 and lukitus == 1:
             GPIO.cleanup()
             lukitus = 0
         time.sleep(1)
